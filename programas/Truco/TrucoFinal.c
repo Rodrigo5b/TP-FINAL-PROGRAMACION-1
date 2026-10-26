@@ -1,21 +1,39 @@
-
-#define CANT_PALOS 4
-#define CANT_NUMEROS 10
+#define CANT_MANOS 3
 #define CANT_CARTAS 40
 #define CANT_CARTAS_JUGADOR 3
 
+typedef struct
+{
+int jerarquiaTruco;
+int valorEnvido;
+}ValoresCarta
+
+typedef struct
+{
+int numero;
+char palo[10];
+ValoresCarta valores;
+bool disponible;
+}Carta
+
+typedef struct
+{
+int numeroMano;
+int resultadoJugador;
+int resultadoCpu;
+}ResultadoMano
+
 void mostrarMenuDeInicio();
-void mostrarEleccionDePuntos();
-char obtenerEleccionDePuntos();
+int obtenerOpcionMenu();
+int configurarPuntajeMaximo();
+void mostrarReglas();
 void mostrarInformacionDelTruco();
 void mostrarComoSeJuega();
 void mostrarValoresDelTruco();
 void mostrarValoresDelEnvido();
 void mostrarEmpates();
-void inicializarPalos(cadena palos[]);
-void inicializarNumerosDelTruco(int numerosDelTruco[]);
-void inicializarCartasUsadas(int cartasUsadas[]);
-void crearMazo(cadena palos[], int numerosDelTruco[], cadena paloDeLasCartas[], int numerosDeLasCartas[], int cartasUsadas[], int mazo[CANT_PALOS][CANT_NUMEROS]);
+void crearMazo(Carta mazo[]);
+void barajarMazo(Carta mazo[]);
 void Ronda(cadena palos[], int numerosDelTruco[], cadena paloDeLasCartas[], int numerosDeLasCartas[], int cartasUsadas[], int mazo[CANT_PALOS][CANT_NUMEROS], int cartasJugador[], int cartasDelCpu[], int mano);
 void repartirCartas(int cartasUsadas[], int cartasJugador[], int cartasDelCpu[], int mano);
 int obtenerSiguienteMano(int mano);
