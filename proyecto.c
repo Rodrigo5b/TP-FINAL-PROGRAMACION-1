@@ -3,6 +3,7 @@
 #include "programas/Ludo/ludo.c"
 #include "programas/Truco/TrucoFinal.c"
 void menuInicio();
+void MenuJuegos();
 int eleccion();
 int JuegaTruco();
 int JuegaLudo();
@@ -13,11 +14,11 @@ int main()
     do
     {
         menuInicio();
-        accion =eleccion();
+        accion = eleccion();
         switch (accion)
               {
         case 1:
-            MenuJuegos()
+            MenuJuegos();
             juego = eleccion();
             switch (juego)
             {
