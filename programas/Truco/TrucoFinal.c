@@ -21,7 +21,6 @@ typedef struct {
 } ResultadoMano;
 
 // Prototipos de funciones
-int truco();
 int seleccionarDificultadCPU();
 void mostrarFinPartida(int pJugador, int pCPU, int pMaximos);
 void dibujarCartasOcultasCPU();
@@ -51,7 +50,6 @@ int fuerzaManoCPU(const Carta cCartas[]);
 void jugarRonda(Carta jCartas[], Carta cCartas[], int *puntosJ, int *puntosC, int pMaximos, int dificultadCPU, int manoInicial);
 int determinarGanadorRonda(const int resultadoMano[], int ganadasJ, int ganadasC, int manoInicial);
 void resolverEnvidoCPU(int eJ, int eC, int *pJ, int *pC, int *estEnv, int manoInicial);
-void pausarSeguro(void);
 void mostrarMatrizResultados(const int resultados[CANT_MANOS][2]);
 void ordenarCartasPorJerarquia(Carta cartas[], int cantidadCartas);
 int buscarCartaPorNumero(const Carta cartas[], int cantidadCartas, int numeroBuscado);
