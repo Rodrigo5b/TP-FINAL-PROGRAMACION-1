@@ -110,8 +110,8 @@ void MenuJuegos(){
 	printf ("                   -------------                  \n");
 	printf ("                  |    TRUCO    |                  \n");
 	printf ("                   -------------                  \n");
-	printf("\n");
-	Escribir "                        2                         " 
+	printf ("\n");
+	printf ("                         2                         \n"); 
 	printf ("                   -------------                  \n");
 	printf ("                  |     LUDO    |                  \n");
 	printf ("                   -------------                  \n");
