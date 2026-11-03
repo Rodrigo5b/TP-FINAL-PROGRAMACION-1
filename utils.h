@@ -25,6 +25,7 @@ bool yaSalioAntes(char vector[], int iActual);
 void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[filas][columnas]);
 void mostrarMatrizDeEnteros(int filas, int columnas, int matriz[filas][columnas]);
 void limpiarPantalla();
+void pausarSeguro();
 ///////////////////////////////////////////////////////////////////////////
 /////////////////////////  IMPLEMENTACIONES  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -160,4 +161,12 @@ void limpiarPantalla() {
 #else
     system("clear");
 #endif
+}
+void pausarSeguro() {
+    int caracter;
+    printf("\nPresione ENTER para continuar...");
+    caracter = getchar();
+    while (caracter != '\n' && caracter != EOF) {
+        caracter = getchar();
+    }
 }
