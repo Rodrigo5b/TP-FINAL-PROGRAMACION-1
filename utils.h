@@ -6,6 +6,9 @@
 #include <float.h>
 #include <time.h>
 #include <string.h>
+#include <errno.h>
+#include <stdint.h>
+#include <windows.h>
 typedef char cadena[200]; // Para tratar a los arrays de chars como 'cadena'
 
 ///////////////////////////////////////////////////////////////////////////
