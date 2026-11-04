@@ -87,6 +87,26 @@ int main(void) {
         switch (opcion) {
             case 1: 
 				menuJuegos(&registro, iniciosJuego);
+				    accion = eleccion();
+        switch (accion)
+              {
+        case 1:
+            MenuJuegos();
+            juego = eleccion();
+            switch (juego)
+            {
+            case 1:
+                JuegaTruco();
+                break;
+            case 2:
+                JuegaBatallaNaval();
+                break;
+            case 3:
+                JuegaLudo();
+                break;
+            default:
+                printf("Saliendo...");
+            }
 				break;
             case 2: ejecutarMenuEstadisticas(&registro, iniciosJuego);
 				break;
