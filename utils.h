@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h> // Para usar el tipo de dato bool
@@ -9,7 +10,8 @@
 #include <errno.h>
 #include <stdint.h>
 #include <windows.h>
-typedef char cadena[200]; // Para tratar a los arrays de chars como 'cadena'
+
+typedef char cadena[200]; // Para tratar a los arrays de chars como 'cadena'[cite: 3]
 
 ///////////////////////////////////////////////////////////////////////////
 ////////////////////////////  PROTOTIPOS  /////////////////////////////////
@@ -31,7 +33,7 @@ void limpiarPantalla();
 void pausarSeguro();
 void esperarEnter(const char *mensaje);
 bool leerLinea(const char *mensaje, char *destino, size_t capacidad);
-bool confirmaUsuario(const char *mensaje);
+void esperarMilisegundos(int milisegundos);
 ///////////////////////////////////////////////////////////////////////////
 /////////////////////////  IMPLEMENTACIONES  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -44,12 +46,12 @@ int leerEntero(cadena mensaje) {
     scanf("%d", &numero);
     return numero;
 }
+
 float leerFloat(cadena mensaje) {
     /* Muestra el mensaje al usuario, lee un float y lo retorna */
-    // ¡Esta va resuelta de regalo! 😉
     float numero;
     printf("%s:\n", mensaje);
-    fflush(stdin); // No es obligatorio pero por las dudas...
+    fflush(stdin);
     scanf("%f", &numero);
     return numero;
 }
@@ -67,12 +69,11 @@ int leerEnteroEntre(int valorMin, int valorMax, cadena mensaje) {
     /* Muestra el mensaje al usuario. Luego lee enteros mientras éstos estén
        fuera del rango [valorMin, valorMax] informando al usuario de
        su error. Cuando finalmente lea un entero válido, lo retorna */
-       int numero;
-    numero=leerEntero(mensaje);
-    while(numero<valorMin || numero>valorMax)
-    {
-    printf("Error. ");
-    numero=leerEntero(mensaje);
+    int numero;
+    numero = leerEntero(mensaje);
+    while (numero < valorMin || numero > valorMax) {
+        printf("Error. ");
+        numero = leerEntero(mensaje);
     }
     return numero;
 }
@@ -82,11 +83,10 @@ float leerFloatEntre(float valorMin, float valorMax, cadena mensaje) {
        fuera del rango [valorMin, valorMax] informando al usuario de
        su error. Cuando finalmente lea un float válido, lo retorna */
     float valor;
-    valor=leerFloat(mensaje);
-    while(valor<valorMin || valor>valorMax)
-    {
-    printf("Error. ");
-    valor=leerFloat(mensaje);
+    valor = leerFloat(mensaje);
+    while (valor < valorMin || valor > valorMax) {
+        printf("Error. ");
+        valor = leerFloat(mensaje);
     }
     return valor;   
 }
@@ -99,17 +99,17 @@ bool confirmaUsuario(cadena mensaje) {
     char res;
     res = leerCaracter(mensaje);
     res = toupper(res);
-    while (res != 'S' && res != 'N')
-    {
-        printf("Eror.\n");
-        res=leerCaracter(mensaje);
-        res=toupper(res);
+    while (res != 'S' && res != 'N') {
+        printf("Error.\n");
+        res = leerCaracter(mensaje);
+        res = toupper(res);
     }
     return res == 'S';
 }
-void mostrarVectorDeEnteros (int elVector[], int cant) {
+
+void mostrarVectorDeEnteros(int elVector[], int cant) {
     for (int i = 0; i < cant; i++) {
-        printf("[%d]: %d\n",i, elVector[i]);   
+        printf("[%d]: %d\n", i, elVector[i]);   
     }
 }
 
@@ -131,18 +131,15 @@ int calcSumatoria(int vecEnteros[], int cant) {
 bool yaSalioAntes(char vector[], int iActual) {
     char charBuscado = vector[iActual];
     int j = 0;
-    while( j < iActual && vector[j] != charBuscado ) {
+    while (j < iActual && vector[j] != charBuscado) {
         j++;
     }
     return j < iActual;
 }
 
-void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[filas][columnas])
-{
-    for (int i = 0; i < filas; i++)
-    {
-        for (int j = 0; j < columnas; j++)
-        {
+void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[filas][columnas]) {
+    for (int i = 0; i < filas; i++) {
+        for (int j = 0; j < columnas; j++) {
             printf("[%d][%d] ", i, j);
             matriz[i][j] = leerEntero(mensaje);
         }
@@ -150,17 +147,15 @@ void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[fil
     }
 }
 
-void mostrarMatrizDeEnteros(int filas, int columnas, int matriz[filas][columnas])
-{
-    for (int i = 0; i < filas; i++)
-    {
-        for (int j = 0; j < columnas; j++)
-        {
+void mostrarMatrizDeEnteros(int filas, int columnas, int matriz[filas][columnas]) {
+    for (int i = 0; i < filas; i++) {
+        for (int j = 0; j < columnas; j++) {
             printf("%d\t", matriz[i][j]);
         }
         printf("\n");
     }
 }
+
 void limpiarPantalla() {
 #ifdef _WIN32
     system("cls");
@@ -168,6 +163,7 @@ void limpiarPantalla() {
     system("clear");
 #endif
 }
+
 void pausarSeguro() {
     int caracter;
     printf("\nPresione ENTER para continuar...");
@@ -176,6 +172,7 @@ void pausarSeguro() {
         caracter = getchar();
     }
 }
+
 bool leerLinea(const char *mensaje, char *destino, size_t capacidad) {
     size_t longitud;
     int caracter;
@@ -192,7 +189,16 @@ bool leerLinea(const char *mensaje, char *destino, size_t capacidad) {
     if (longitud > 0 && destino[longitud - 1] == '\r') destino[longitud - 1] = '\0';
     return true;
 }
+
 void esperarEnter(const char *mensaje) {
     char linea[8];
     (void)leerLinea(mensaje, linea, sizeof linea);
+}
+
+void esperarMilisegundos(int milisegundos) {
+#ifdef _WIN32
+    Sleep((DWORD)milisegundos);
+#else
+    usleep((useconds_t)milisegundos * 1000);
+#endif
 }
