@@ -26,6 +26,9 @@ void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[fil
 void mostrarMatrizDeEnteros(int filas, int columnas, int matriz[filas][columnas]);
 void limpiarPantalla();
 void pausarSeguro();
+void esperarEnter(const char *mensaje);
+bool leerLinea(const char *mensaje, char *destino, size_t capacidad);
+bool confirmaUsuario(const char *mensaje);
 ///////////////////////////////////////////////////////////////////////////
 /////////////////////////  IMPLEMENTACIONES  //////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -169,4 +172,24 @@ void pausarSeguro() {
     while (caracter != '\n' && caracter != EOF) {
         caracter = getchar();
     }
+}
+bool leerLinea(const char *mensaje, char *destino, size_t capacidad) {
+    size_t longitud;
+    int caracter;
+    if (mensaje != NULL) printf("%s", mensaje);
+    if (capacidad == 0 || fgets(destino, (int)capacidad, stdin) == NULL) return false;
+    longitud = strlen(destino);
+    if (longitud > 0 && destino[longitud - 1] == '\n') {
+        destino[longitud - 1] = '\0';
+    } else {
+        caracter = getchar();
+        while (caracter != '\n' && caracter != EOF) caracter = getchar();
+    }
+    longitud = strlen(destino);
+    if (longitud > 0 && destino[longitud - 1] == '\r') destino[longitud - 1] = '\0';
+    return true;
+}
+void esperarEnter(const char *mensaje) {
+    char linea[8];
+    (void)leerLinea(mensaje, linea, sizeof linea);
 }
