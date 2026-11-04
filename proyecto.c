@@ -2,6 +2,7 @@
 #include "programas/BatallaNaval/batalla_naval.c"
 #include "programas/Ludo/ludo.c"
 #include "programas/Truco/TrucoFinal.c"
+
 #define ARCADE_MAX_PERFILES 100
 #define ARCADE_LONGITUD_NOMBRE 64
 #define ARCADE_CANT_JUEGOS 3
@@ -36,18 +37,19 @@ typedef enum {
     CARGA_ERROR
 } EstadoCargaPerfiles;
 
-void menuInicio();
-void menuJuegos();
-int eleccion();
-int juegaTruco();
-int juegaLudo();
-int juegaBatallaNaval();
+// Prototipos
+void menuInicio(void);
+void menuJuegos(void);
+int ejecutaTruco(void);
+int ejecutaLudo(void);
+int ejecutaBatallaNaval(void);
 void inicializarPerfiles(RegistroPerfiles *registro);
 int buscarPerfilPorId(const RegistroPerfiles *registro, int id);
 int buscarPerfilPorNombre(const RegistroPerfiles *registro, const char *nombre);
 bool validarPerfil(const PerfilJugador *perfil);
 void mostrarPerfil(const PerfilJugador *perfil);
 void listarPerfiles(const RegistroPerfiles *registro);
+bool leerNombrePerfil(char nombre[ARCADE_LONGITUD_NOMBRE]);
 void registrarPerfil(RegistroPerfiles *registro);
 void consultarPerfil(const RegistroPerfiles *registro);
 void editarPerfil(RegistroPerfiles *registro);
@@ -55,73 +57,65 @@ void eliminarPerfil(RegistroPerfiles *registro);
 void registrarResultadoEnPerfil(RegistroPerfiles *registro, int id, int juego, bool victoria);
 void cargarResultadoManual(RegistroPerfiles *registro);
 void mostrarMenuPerfiles(void);
-void gestionarPerfiles(RegistroPerfiles *registro);
 void ordenarPerfilesPorNombre(PerfilJugador perfiles[], int cantidad);
 void listarPerfilesOrdenados(const RegistroPerfiles *registro);
 void mostrarEstadisticas(const RegistroPerfiles *registro);
+void mostrarMenuEstadisticas(void);
+void gestionarPerfiles(RegistroPerfiles *registro);
 bool exportarReportePerfiles(const RegistroPerfiles *registro);
 EstadoCargaPerfiles cargarPerfiles(RegistroPerfiles *registro);
 bool guardarPerfiles(const RegistroPerfiles *registro);
-void mostrarMenuEstadisticas(void);
+void mostrarInicios(const int inicios[3]);
+void ejecutarMenuEstadisticas(const RegistroPerfiles *registro, const int inicios[3]);
+void gestionarJuegos(RegistroPerfiles *registro, int iniciosJuego[3]);
 
 int main(void) {
     RegistroPerfiles registro;
     inicializarPerfiles(&registro);
     EstadoCargaPerfiles estadoCarga = cargarPerfiles(&registro);
-    bool puedeGuardar = estadoCarga != CARGA_ERROR;
+    bool puedeGuardar = (estadoCarga != CARGA_ERROR);
     int opcion = 0;
     int iniciosJuego[3] = {0}; 
     srand((unsigned int)time(NULL));
 
     if (estadoCarga == CARGA_CORRECTA) {
         printf("Se recuperaron %d jugadores desde %s.\n", registro.cantidad, ARCADE_DATOS);
-    } else if (estadoCarga == CARGA_NUEVA) {
-        printf("Primer inicio: no hay registros previos.\n");
     } else {
-        printf("ADVERTENCIA: los datos de disco no se modificaran en esta sesion.\n");
+        if (estadoCarga == CARGA_NUEVA) {
+            printf("Primer inicio: no hay registros previos.\n");
+        } else {
+            printf("ADVERTENCIA: los datos de disco no se modificaran en esta sesion.\n");
+        }
     }
+    pausarSeguro();
 
     while (opcion != 4) {
         menuInicio();
-        opcion = eleccion(1, 4);
-        switch (opcion) {
-            case 1: 
-				menuJuegos(&registro, iniciosJuego);
-				    accion = eleccion();
-        switch (accion)
-              {
-        case 1:
-            MenuJuegos();
-            juego = eleccion();
-            switch (juego)
-            {
-            case 1:
-                JuegaTruco();
-                break;
-            case 2:
-                JuegaBatallaNaval();
-                break;
-            case 3:
-                JuegaLudo();
-                break;
-            default:
-                printf("Saliendo...");
+        opcion = leerEnteroEntre(1, 4, "Seleccione la opcion que desee ejecutar: ");
+        
+        if (opcion == 1) {
+            gestionarJuegos(&registro, iniciosJuego);
+        } else {
+            if (opcion == 2) {
+                ejecutarMenuEstadisticas(&registro, iniciosJuego);
+            } else {
+                if (opcion == 3) {
+                    gestionarPerfiles(&registro);
+                } else {
+                    if (opcion == 4) {
+                        printf("Saliendo de la aplicacion...\n");
+                    }
+                }
             }
-				break;
-            case 2: ejecutarMenuEstadisticas(&registro, iniciosJuego);
-				break;
-            case 3: gestionarPerfiles(&registro);
-				break;
-            default: 
-				printf ("Saliendo...");
-				break;
-		    }
         }
     }
 
     if (puedeGuardar) {
-        if (guardarPerfiles(&registro)) printf("Datos guardados correctamente en %s.\n", ARCADE_DATOS);
-        else fprintf(stderr, "No se pudieron guardar los datos. Revise los permisos y el disco.\n");
+        if (guardarPerfiles(&registro)) {
+            printf("Datos guardados correctamente en %s.\n", ARCADE_DATOS);
+        } else {
+            fprintf(stderr, "No se pudieron guardar los datos. Revise los permisos y el disco.\n");
+        }
     } else {
         printf("No se guardo: se protege el archivo original con errores.\n");
     }
@@ -129,97 +123,132 @@ int main(void) {
     return 0;
 }
 
+void menuInicio(void) {
+    limpiarPantalla();
+    printf(" _______    ______   __        __               ___            _______   ________   ______   __        \n");
+    printf("|       |  /      | |  |      |  |             /   |          |       | |        | /      | |  |  \n");
+    printf("| $$$$$$$||  $$$$$$|| $$      | $$            |  $$$|         | $$$$$$$|| $$$$$$$$|  $$$$$$|| $$ \n");
+    printf("| $$__| $$| $$  | $$| $$      | $$             |$$  $$__      | $$  | $$| $$__    | $$__| $$| $$ \n");
+    printf("| $$    $$| $$  | $$| $$      | $$            | |$$$/  |      | $$  | $$| $$  |   | $$    $$| $$ \n");
+    printf("| $$$$$$$|| $$  | $$| $$      | $$            | $$|$$ $$      | $$  | $$| $$$$$   | $$$$$$$$| $$ \n");
+    printf("| $$  | $$| $$__/ $$| $$_____ | $$_____       | $$_|$$|       | $$__/ $$| $$_____ | $$  | $$| $$_____ \n");
+    printf("| $$  | $$ |$$    $$| $$     || $$     |       |$$  |$$|      | $$    $$| $$     || $$  | $$| $$     \\\n");
+    printf(" |$$   |$$  |$$$$$$  |$$$$$$$$ |$$$$$$$$        |$$$$ $$       |$$$$$$$  |$$$$$$$$ |$$   |$$ |$$$$$$$$\n");
+    printf("\n\n\n");
+    printf("                        1                         \n");
+    printf("                   -------------                  \n");
+    printf("                  |    INICIO   |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");
+    printf("                        2                         \n");
+    printf("                   -------------                  \n");
+    printf("                  | ESTADISTICAS |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");
+    printf("                        3                         \n");
+    printf("                   -------------                  \n");
+    printf("                  |   USUARIOS  |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");
+    printf("                        4                         \n");
+    printf("                   -------------                  \n");
+    printf("                  |    SALIR    |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");  
+}
 
-void menuInicio()
-{
-    printf (" _______    ______   __        __               ___            _______   ________   ______   __        \n");
-    printf ("|       |  /      | |  |      |  |             /   |          |       | |        | /      | |  |  \n");
-    printf ("| $$$$$$$||  $$$$$$|| $$      | $$            |  $$$|         | $$$$$$$|| $$$$$$$$|  $$$$$$|| $$ \n");
-    printf ("| $$__| $$| $$  | $$| $$      | $$             |$$  $$__      | $$  | $$| $$__    | $$__| $$| $$ \n");
-    printf ("| $$    $$| $$  | $$| $$      | $$            | |$$$/  |      | $$  | $$| $$  |   | $$    $$| $$ \n");
-    printf ("| $$$$$$$|| $$  | $$| $$      | $$            | $$|$$ $$      | $$  | $$| $$$$$   | $$$$$$$$| $$ \n");
-    printf ("| $$  | $$| $$__/ $$| $$_____ | $$_____       | $$_|$$|       | $$__/ $$| $$_____ | $$  | $$| $$_____ \n");
-    printf ("| $$  | $$ |$$    $$| $$     || $$     |       |$$  |$$|      | $$    $$| $$     || $$  | $$| $$     \\n");
-    printf (" |$$   |$$  |$$$$$$  |$$$$$$$$ |$$$$$$$$        |$$$$ $$       |$$$$$$$  |$$$$$$$$ |$$   |$$ |$$$$$$$$\n");
-    printf ("\n");
-    printf ("\n");
-	printf ("\n");
-	printf ( "                        1                         \n");
-	printf ("                   -------------                  \n");
-	printf ("                  |    INICIO   |                  \n");
-	printf ("                   -------------                  \n");
-	printf ("\n");
-	Escribir "                        2                         " 
-	printf ("                   -------------                  \n");
-	printf ("                  | ESTADISTICAS |                  \n");
-	printf ("                   -------------                  \n");
-	printf ("\n");
-	Escribir "                        3                         " 
-	printf ("                   -------------                  \n");
-	printf ("                  |   USUARIOS  |                  \n");
-	printf ("                   -------------                  \n");
-	printf ("\n");
-	Escribir "                        4                         " 
-	printf ("                   -------------                  \n");
-	printf ("                  |    SALIR    |                  \n");
-	printf ("                   -------------                  \n");
-	printf("\n");  
+void menuJuegos(void) {
+    limpiarPantalla();
+     printf ("     _____  \n");
+    printf ("    |      |\n");
+    printf ("     |$$$$$ __    __   ______    ______    ______    _______ \n");
+    printf ("       | $$|  |  |  | /      |  /      |  /      |  /       | \n");
+    printf ("  __   | $$| $$  | $$|  $$$$$$||  $$$$$$||  $$$$$$||  $$$$$$$ \n");
+    printf (" |  |  | $$| $$  | $$| $$    $$| $$  | $$| $$  | $$ |$$    | \n");
+    printf (" | $$__| $$| $$__/ $$| $$$$$$$$| $$__| $$| $$__/ $$ _|$$$$$$| \n");
+    printf ("  |$$    $$ |$$    $$ |$$     | |$$    $$ |$$    $$|       $$ \n");
+    printf ("   |$$$$$$   |$$$$$$   |$$$$$$$ _|$$$$$$$  |$$$$$$  |$$$$$$$ \n");
+    printf ("                                |  |__| $$ \n");
+    printf ("                                |$$    $$ \n");
+    printf ("                                 |$$$$$$ \n");
+    printf("\n\n");
+    printf("                        1                         \n");
+    printf("                   -------------                  \n");
+    printf("                  |    TRUCO    |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");
+    printf("                        2                         \n"); 
+    printf("                   -------------                  \n");
+    printf("                  |     LUDO    |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");
+    printf("                        3                         \n"); 
+    printf("                   --------------                  \n");
+    printf("                  |    BATALLA   |                 \n");
+    printf("                  |     NAVAL    |                 \n");
+    printf("                   --------------                  \n");
+    printf("\n");
+    printf("                        4                         \n"); 
+    printf("                   -------------                  \n");
+    printf("                  |   VOLVER    |                  \n");
+    printf("                   -------------                  \n");
+    printf("\n");  
 }
-int eleccion()
-{
-    int res;
-    res = leerEnteroEntre(1, 4, "Seleccione la opcion que desee ejecutar: ");
-    return res;
+
+int ejecutaTruco(void) {
+    return truco();
 }
-void menuJuegos(){
-    printf ("     _____  \n");
-    printf ("    |     \ \n");
-    printf ("     \$$$$$ __    __   ______    ______    ______    _______ \n");
-    printf ("       | $$|  \  |  \ /      \  /      \  /      \  /       \ \n");
-    printf ("  __   | $$| $$  | $$|  $$$$$$\|  $$$$$$\|  $$$$$$\|  $$$$$$$ \n");
-    printf (" |  \  | $$| $$  | $$| $$    $$| $$  | $$| $$  | $$ \$$    \ \n");
-    printf (" | $$__| $$| $$__/ $$| $$$$$$$$| $$__| $$| $$__/ $$ _\$$$$$$\ \n");
-    printf ("  \$$    $$ \$$    $$ \$$     \ \$$    $$ \$$    $$|       $$ \n");
-    printf ("   \$$$$$$   \$$$$$$   \$$$$$$$ _\$$$$$$$  \$$$$$$  \$$$$$$$ \n");
-    printf ("                                |  \__| $$ \n");
-    printf ("                                \$$    $$ \n");
-    printf ("                                 \$$$$$$ \n");
-    printf ("\n");
-    printf ("\n");
-	printf ( "                        1                         \n");
-	printf ("                   -------------                  \n");
-	printf ("                  |    TRUCO    |                  \n");
-	printf ("                   -------------                  \n");
-	printf ("\n");
-	printf ("                         2                         \n"); 
-	printf ("                   -------------                  \n");
-	printf ("                  |     LUDO    |                  \n");
-	printf ("                   -------------                  \n");
-	printf ("\n");
-	printf ("                         3                         \n"); 
-	printf ("                   --------------                  \n");
-	printf ("                  |    BATALLA   |                 \n");
-	printf ("                  |     NAVAL    |                 \n");
-	printf ("                   --------------                  \n");
-	printf("\n");
-	printf ("                         4                         \n"); 
-	printf ("                   -------------                  \n");
-	printf ("                  |   VOLVER    |                  \n");
-	printf ("                   -------------                  \n");
-	printf("\n");  
+
+int ejecutaLudo(void) {
+    return ludo();
 }
-int JuegaTruco()
-{
-    truco();
+
+int ejecutaBatallaNaval(void) {
+    return batalla_Naval();
 }
-int JuegaLudo()
-{
-    ludo();
+
+void gestionarJuegos(RegistroPerfiles *registro, int iniciosJuego[3]) {
+    int opcionJuego = 0;
+    while (opcionJuego != 4) {
+        menuJuegos();
+        opcionJuego = leerEnteroEntre(1, 4, "Seleccione una opcion de juego: ");
+        if (opcionJuego == 1) {
+            iniciosJuego[ARCADE_TRUCO]++;
+            ejecutaTruco();
+            if (registro->cantidad > 0) {
+                if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
+                    cargarResultadoManual(registro);
+                }
+            }
+        } else {
+            if (opcionJuego == 2) {
+                iniciosJuego[ARCADE_LUDO]++;
+                ejecutaLudo();
+                if (registro->cantidad > 0) {
+                    if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
+                        cargarResultadoManual(registro);
+                    }
+                }
+            } else {
+                if (opcionJuego == 3) {
+                    iniciosJuego[ARCADE_BATALLA]++;
+                    ejecutaBatallaNaval();
+                    if (registro->cantidad > 0) {
+                        if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
+                            cargarResultadoManual(registro);
+                        }
+                    }
+                } else {
+                    if (opcionJuego == 4) {
+                        printf("Volviendo al menu principal...\n");
+                    }
+                }
+            }
+        }
+        pausarSeguro();
+    }
 }
-int JuegaBatallaNaval()
-{
-    batalla_Naval();
-}
+
 void inicializarPerfiles(RegistroPerfiles *registro) {
     memset(registro, 0, sizeof(*registro));
     registro->proximoId = 1;
@@ -227,33 +256,40 @@ void inicializarPerfiles(RegistroPerfiles *registro) {
 
 int buscarPerfilPorId(const RegistroPerfiles *registro, int id) {
     int indice = 0;
-    while (indice < registro->cantidad && registro->perfiles[indice].id != id) indice++;
+    while (indice < registro->cantidad && registro->perfiles[indice].id != id) {
+        indice++;
+    }
     return indice < registro->cantidad ? indice : -1;
 }
 
 int buscarPerfilPorNombre(const RegistroPerfiles *registro, const char *nombre) {
     int indice = 0;
-    while (indice < registro->cantidad && strcmp(registro->perfiles[indice].nombre, nombre) != 0) indice++;
+    while (indice < registro->cantidad && strcmp(registro->perfiles[indice].nombre, nombre) != 0) {
+        indice++;
+    }
     return indice < registro->cantidad ? indice : -1;
 }
 
 bool validarPerfil(const PerfilJugador *perfil) {
     bool valido = perfil->id > 0 && memchr(perfil->nombre, '\0', sizeof perfil->nombre) != NULL;
-    if (valido) valido = perfil->nombre[0] != '\0';
-    for (int i = 0; i < FESTIVAL_CANT_JUEGOS; i++) {
+    if (valido) {
+        valido = perfil->nombre[0] != '\0';
+    }
+    for (int i = 0; i < ARCADE_CANT_JUEGOS; i++) {
         if (perfil->estadisticas[i].partidas < 0 || perfil->estadisticas[i].victorias < 0 ||
             perfil->estadisticas[i].derrotas < 0 ||
             perfil->estadisticas[i].victorias > perfil->estadisticas[i].partidas ||
-            perfil->estadisticas[i].derrotas != perfil->estadisticas[i].partidas - perfil->estadisticas[i].victorias)
+            perfil->estadisticas[i].derrotas != perfil->estadisticas[i].partidas - perfil->estadisticas[i].victorias) {
             valido = false;
+        }
     }
     return valido;
 }
 
 void mostrarPerfil(const PerfilJugador *perfil) {
     printf("ID: %-4d Nombre: %s\n", perfil->id, perfil->nombre);
-    const char *juegos[FESTIVAL_CANT_JUEGOS] = {"Truco", "Batalla Naval", "Ludo"};
-    for (int j = 0; j < FESTIVAL_CANT_JUEGOS; j++) {
+    const char *juegos[ARCADE_CANT_JUEGOS] = {"Truco", "Batalla Naval", "Ludo"};
+    for (int j = 0; j < ARCADE_CANT_JUEGOS; j++) {
         printf("  %-13s Partidas: %-3d Ganadas: %-3d Perdidas: %d\n", juegos[j],
                perfil->estadisticas[j].partidas,
                perfil->estadisticas[j].victorias,
@@ -263,12 +299,12 @@ void mostrarPerfil(const PerfilJugador *perfil) {
 
 void listarPerfiles(const RegistroPerfiles *registro) {
     printf("\n===== JUGADORES REGISTRADOS (%d) =====\n", registro->cantidad);
-    if (registro->cantidad == 0){
-		printf("Aun no hay jugadores registrados.\n");
-			}
-    for (int i = 0; i < registro->cantidad; i++){
-		mostrarPerfil(&registro->perfiles[i]);
-			}
+    if (registro->cantidad == 0) {
+        printf("Aun no hay jugadores registrados.\n");
+    }
+    for (int i = 0; i < registro->cantidad; i++) {
+        mostrarPerfil(&registro->perfiles[i]);
+    }
 }
 
 bool leerNombrePerfil(char nombre[ARCADE_LONGITUD_NOMBRE]) {
@@ -276,10 +312,11 @@ bool leerNombrePerfil(char nombre[ARCADE_LONGITUD_NOMBRE]) {
     while (true) {
         if (!leerLinea("Nombre del jugador: ", entrada, sizeof entrada)) return false;
         size_t longitud = strlen(entrada);
-        if (longitud == 0) printf("El nombre no puede estar vacio.\n");
-        else if (longitud >= ARCADE_LONGITUD_NOMBRE)
-            printf("El nombre no puede superar %d caracteres.\n", FESTIVAL_LONGITUD_NOMBRE - 1);
-        else {
+        if (longitud == 0) {
+            printf("El nombre no puede estar vacio.\n");
+        } else if (longitud >= ARCADE_LONGITUD_NOMBRE) {
+            printf("El nombre no puede superar %d caracteres.\n", ARCADE_LONGITUD_NOMBRE - 1);
+        } else {
             strcpy(nombre, entrada);
             return true;
         }
@@ -307,14 +344,17 @@ void registrarPerfil(RegistroPerfiles *registro) {
 void consultarPerfil(const RegistroPerfiles *registro) {
     int id = leerEntero("ID a buscar: ");
     int indice = buscarPerfilPorId(registro, id);
-    if (indice >= 0) mostrarPerfil(&registro->perfiles[indice]);
-    else printf("No existe un jugador con ese ID.\n");
+    if (indice >= 0) {
+        mostrarPerfil(&registro->perfiles[indice]);
+    } else {
+        printf("No existe un jugador con ese ID.\n");
+    }
 }
 
 void editarPerfil(RegistroPerfiles *registro) {
     int id = leerEntero("ID del jugador a modificar: ");
     int indice = buscarPerfilPorId(registro, id);
-    char nombreNuevo[FESTIVAL_LONGITUD_NOMBRE];
+    char nombreNuevo[ARCADE_LONGITUD_NOMBRE];
     if (indice < 0) {
         printf("Jugador inexistente.\n");
         return;
@@ -338,7 +378,7 @@ void eliminarPerfil(RegistroPerfiles *registro) {
         return;
     }
     mostrarPerfil(&registro->perfiles[indice]);
-    if (!confirmaUsuario("Confirma la eliminacion? [S/N]: ")) return;
+    if (!confirmaUsuario("Confirma la eliminacion?")) return;
     for (int i = indice; i < registro->cantidad - 1; i++) {
         registro->perfiles[i] = registro->perfiles[i + 1];
     }
@@ -349,17 +389,22 @@ void eliminarPerfil(RegistroPerfiles *registro) {
 
 void registrarResultadoEnPerfil(RegistroPerfiles *registro, int id, int juego, bool victoria) {
     int indice = buscarPerfilPorId(registro, id);
-    if (indice < 0 || juego < 0 || juego >= ARCADE_CANT_JUEGOS){ 
+    if (indice < 0 || juego < 0 || juego >= ARCADE_CANT_JUEGOS) {
+        printf("Jugador inexistente o juego invalido.\n");
+        return;
+    }
     EstadisticasPerfil *estadisticas = &registro->perfiles[indice].estadisticas[juego];
-			}
     if (estadisticas->partidas == INT_MAX || (victoria && estadisticas->victorias == INT_MAX) ||
         (!victoria && estadisticas->derrotas == INT_MAX)) {
         printf("No se puede incrementar el contador de partidas.\n");
-			}
+        return;
     }
     estadisticas->partidas++;
-    if (victoria) estadisticas->victorias++;
-    else estadisticas->derrotas++;
+    if (victoria) {
+        estadisticas->victorias++;
+    } else {
+        estadisticas->derrotas++;
+    }
     printf("Resultado asociado al jugador %s.\n", registro->perfiles[indice].nombre);
 }
 
@@ -371,7 +416,7 @@ void cargarResultadoManual(RegistroPerfiles *registro) {
     }
     printf("1. Truco\n2. Batalla Naval\n3. Ludo\n");
     int juego = leerEnteroEntre(1, 3, "Juego: ") - 1;
-    bool gano = confirmaUsuario("Gano la partida? [S/N]: ");
+    bool gano = confirmaUsuario("Gano la partida?");
     registrarResultadoEnPerfil(registro, id, juego, gano);
 }
 
@@ -389,11 +434,12 @@ void mostrarMenuPerfiles(void) {
 }
 
 void ordenarPerfilesPorNombre(PerfilJugador perfiles[], int cantidad) {
-    
     for (int i = 0; i < cantidad; i++) {
         int menor = i;
         for (int j = i + 1; j < cantidad; j++) {
-            if (strcmp(perfiles[j].nombre, perfiles[menor].nombre) < 0) menor = j;
+            if (strcmp(perfiles[j].nombre, perfiles[menor].nombre) < 0) {
+                menor = j;
+            }
         }
         if (menor != i) {
             PerfilJugador auxiliar = perfiles[i];
@@ -406,13 +452,13 @@ void ordenarPerfilesPorNombre(PerfilJugador perfiles[], int cantidad) {
 void listarPerfilesOrdenados(const RegistroPerfiles *registro) {
     PerfilJugador copia[ARCADE_MAX_PERFILES];
     for (int i = 0; i < registro->cantidad; i++) {
-	copia[i] = registro->perfiles[i];
+        copia[i] = registro->perfiles[i];
+    }
     ordenarPerfilesPorNombre(copia, registro->cantidad);
     printf("\n===== JUGADORES EN ORDEN ALFABETICO =====\n");
-	}
-    for (int i = 0; i < registro->cantidad; i++){ 
-	mostrarPerfil(&copia[i]);
-	}
+    for (int i = 0; i < registro->cantidad; i++) {
+        mostrarPerfil(&copia[i]);
+    }
 }
 
 void mostrarEstadisticas(const RegistroPerfiles *registro) {
@@ -446,34 +492,50 @@ void gestionarPerfiles(RegistroPerfiles *registro) {
     while (opcion != 9) {
         mostrarMenuPerfiles();
         opcion = leerEnteroEntre(1, 9, "Seleccione una opcion: ");
-        switch (opcion) {
-            case 1: registrarPerfil(registro); 
-			break;
-            case 2: listarPerfiles(registro); 
-			break;
-            case 3: consultarPerfil(registro); 
-			break;
-            case 4: editarPerfil(registro); 
-			break;
-            case 5: eliminarPerfil(registro); 
-			break;
-            case 6: cargarResultadoManual(registro); 
-			break;
-            case 7: listarPerfilesOrdenados(registro); 
-			break;
-            case 8: if (exportarReportePerfiles(registro)) 
-			printf("Reporte exportado: %s\n", ARCADE_REPORTE); 
-			break;
-            default: 
-			printf ("Saliendo...");
-			break;
+        
+        if (opcion == 1) {
+            registrarPerfil(registro);
+        } else {
+            if (opcion == 2) {
+                listarPerfiles(registro);
+            } else {
+                if (opcion == 3) {
+                    consultarPerfil(registro);
+                } else {
+                    if (opcion == 4) {
+                        editarPerfil(registro);
+                    } else {
+                        if (opcion == 5) {
+                            eliminarPerfil(registro);
+                        } else {
+                            if (opcion == 6) {
+                                cargarResultadoManual(registro);
+                            } else {
+                                if (opcion == 7) {
+                                    listarPerfilesOrdenados(registro);
+                                } else {
+                                    if (opcion == 8) {
+                                        if (exportarReportePerfiles(registro)) {
+                                            printf("Reporte exportado: %s\n", ARCADE_REPORTE);
+                                        }
+                                    } else {
+                                        if (opcion == 9) {
+                                            printf("Volviendo...\n");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        pausarSeguro();
     }
 }
 
-//Archivos binarios y reportes de texto
 EstadoCargaPerfiles cargarPerfiles(RegistroPerfiles *registro) {
-    FILE *archivo = fopen(REGISTRO_DATOS, "rb");
+    FILE *archivo = fopen(ARCADE_DATOS, "rb");
     if (archivo == NULL) {
         if (errno == ENOENT) return CARGA_NUEVA;
         perror("No se pudo abrir perfiles.dat");
@@ -486,35 +548,39 @@ EstadoCargaPerfiles cargarPerfiles(RegistroPerfiles *registro) {
     int proximoId = 0;
     RegistroPerfiles temporal;
     inicializarPerfiles(&temporal);
-    bool correcto = fread(firma, sizeof firma, 1, archivo) == 1;
-    if (correcto) correcto = memcmp(firma, firmaEsperada, sizeof firma) == 0;
-    if (correcto) correcto = fread(&version, sizeof version, 1, archivo) == 1 && version == ARCADE_VERSION_ARCHIVO;
-    if (correcto) correcto = fread(&cantidad, sizeof cantidad, 1, archivo) == 1 && cantidad >= 0 && cantidad <= ARCADE_MAX_PERFILES;
-    if (correcto) correcto = fread(&proximoId, sizeof proximoId, 1, archivo) == 1 && proximoId > 0;
-    if (correcto && cantidad > 0)
-        correcto = fread(temporal.perfiles, sizeof(PerfilJugador), (size_t)cantidad, archivo) == (size_t)cantidad;
-    if (correcto) correcto = fgetc(archivo) == EOF && !ferror(archivo);
+    
+    bool correcto = (fread(firma, sizeof firma, 1, archivo) == 1);
+    if (correcto) correcto = (memcmp(firma, firmaEsperada, sizeof firma) == 0);
+    if (correcto) correcto = (fread(&version, sizeof version, 1, archivo) == 1 && version == ARCADE_VERSION_ARCHIVO);
+    if (correcto) correcto = (fread(&cantidad, sizeof cantidad, 1, archivo) == 1 && cantidad >= 0 && cantidad <= ARCADE_MAX_PERFILES);
+    if (correcto) correcto = (fread(&proximoId, sizeof proximoId, 1, archivo) == 1 && proximoId > 0);
+    if (correcto && cantidad > 0) {
+        correcto = (fread(temporal.perfiles, sizeof(PerfilJugador), (size_t)cantidad, archivo) == (size_t)cantidad);
+    }
+    if (correcto) correcto = (fgetc(archivo) == EOF && !ferror(archivo));
     if (fclose(archivo) == EOF) correcto = false;
+    
     if (correcto) {
         int maximoId = 0;
         for (int i = 0; i < cantidad; i++) {
-            if (!validarPerfil(&temporal.perfiles[i])){
-			correcto = false;
-			}
-            if (temporal.perfiles[i].id > maximoId){
-			maximoId = temporal.perfiles[i].id;
-			}
+            if (!validarPerfil(&temporal.perfiles[i])) {
+                correcto = false;
+            }
+            if (temporal.perfiles[i].id > maximoId) {
+                maximoId = temporal.perfiles[i].id;
+            }
             for (int j = 0; j < i; j++) {
                 if (temporal.perfiles[i].id == temporal.perfiles[j].id ||
-                    strncmp(temporal.perfiles[i].nombre, temporal.perfiles[j].nombre, ARCADE_LONGITUD_NOMBRE) == 0) 
-			       correcto = false;
-			}
+                    strncmp(temporal.perfiles[i].nombre, temporal.perfiles[j].nombre, ARCADE_LONGITUD_NOMBRE) == 0) {
+                    correcto = false;
+                }
             }
         }
         if (proximoId <= maximoId) correcto = false;
     }
+    
     if (!correcto) {
-        fprintf(stderr, "Archivo %s invalido, truncado o incompatible. No se sobrescribira.\n", REGISTRO_DATOS);
+        fprintf(stderr, "Archivo %s invalido, truncado o incompatible. No se sobrescribira.\n", ARCADE_DATOS);
         return CARGA_ERROR;
     }
     temporal.cantidad = cantidad;
@@ -524,63 +590,68 @@ EstadoCargaPerfiles cargarPerfiles(RegistroPerfiles *registro) {
 }
 
 bool guardarPerfiles(const RegistroPerfiles *registro) {
-    FILE *archivo = fopen(REPORTE_TEMPORAL, "wb");
+    FILE *archivo = fopen(ARCADE_TEMPORAL, "wb");
     if (archivo == NULL) {
         perror("No se pudo crear el archivo temporal");
         return false;
     }
     const char firma[4] = {'F','S','T','L'};
-    uint32_t version = FESTIVAL_VERSION_ARCHIVO;
-    bool correcto = fwrite(firma, sizeof firma, 1, archivo) == 1;
-    if (correcto) correcto = fwrite(&version, sizeof version, 1, archivo) == 1;
-    if (correcto) correcto = fwrite(&registro->cantidad, sizeof registro->cantidad, 1, archivo) == 1;
-    if (correcto) correcto = fwrite(&registro->proximoId, sizeof registro->proximoId, 1, archivo) == 1;
-    if (correcto && registro->cantidad > 0)
-        correcto = fwrite(registro->perfiles, sizeof(PerfilJugador), (size_t)registro->cantidad, archivo) == (size_t)registro->cantidad;
+    uint32_t version = ARCADE_VERSION_ARCHIVO;
+    bool correcto = (fwrite(firma, sizeof firma, 1, archivo) == 1);
+    if (correcto) correcto = (fwrite(&version, sizeof version, 1, archivo) == 1);
+    if (correcto) correcto = (fwrite(&registro->cantidad, sizeof registro->cantidad, 1, archivo) == 1);
+    if (correcto) correcto = (fwrite(&registro->proximoId, sizeof registro->proximoId, 1, archivo) == 1);
+    if (correcto && registro->cantidad > 0) {
+        correcto = (fwrite(registro->perfiles, sizeof(PerfilJugador), (size_t)registro->cantidad, archivo) == (size_t)registro->cantidad);
+    }
     if (fclose(archivo) == EOF) correcto = false;
     if (correcto) {
 #ifdef _WIN32
-        correcto = MoveFileExA(REPORTE_TEMPORAL, REGISTRO_DATOS,
-                              MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+        correcto = (MoveFileExA(ARCADE_TEMPORAL, ARCADE_DATOS,
+                              MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0);
 #else
-        correcto = rename(REPORTE_TEMPORAL, REGISTRO_DATOS) == 0;
+        correcto = (rename(ARCADE_TEMPORAL, ARCADE_DATOS) == 0);
 #endif
     }
     if (!correcto) {
         perror("No se pudieron guardar los perfiles");
-        remove(REPORTE_TEMPORAL);
+        remove(ARCADE_TEMPORAL);
     }
     return correcto;
 }
 
 bool exportarReportePerfiles(const RegistroPerfiles *registro) {
     PerfilJugador copia[ARCADE_MAX_PERFILES];
-    for (int i = 0; i < registro->cantidad; i++) copia[i] = registro->perfiles[i];
+    for (int i = 0; i < registro->cantidad; i++) {
+        copia[i] = registro->perfiles[i];
+    }
     ordenarPerfilesPorNombre(copia, registro->cantidad);
     FILE *archivo = fopen(ARCADE_REPORTE, "w");
     if (archivo == NULL) {
         perror("No se pudo crear el reporte");
         return false;
     }
-    bool correcto = fprintf(archivo, "FESTIVAL - REPORTE DE PERFILES\nOrden: alfabetico por nombre\n\n") >= 0;
-    if (correcto) correcto = fprintf(archivo, "ID   NOMBRE                       TRUCO (P/G)  BATALLA (P/G)  LUDO (P/G)\n") >= 0;
+    bool correcto = (fprintf(archivo, "FESTIVAL - REPORTE DE PERFILES\nOrden: alfabetico por nombre\n\n") >= 0);
+    if (correcto) {
+        correcto = (fprintf(archivo, "ID   NOMBRE                       TRUCO (P/G)  BATALLA (P/G)  LUDO (P/G)\n") >= 0);
+    }
     for (int i = 0; i < registro->cantidad && correcto; i++) {
         const PerfilJugador *p = &copia[i];
-        correcto = fprintf(archivo, "%-4d %-28.28s %4d/%-4d      %4d/%-4d       %4d/%-4d\n",
+        correcto = (fprintf(archivo, "%-4d %-28.28s %4d/%-4d      %4d/%-4d       %4d/%-4d\n",
                            p->id, p->nombre,
-                           p->estadisticas[REPORTE_TRUCO].partidas, p->estadisticas[REPORTE_TRUCO].victorias,
-                           p->estadisticas[REPORTE_BATALLA].partidas, p->estadisticas[REPORTE_BATALLA].victorias,
-                           p->estadisticas[REPORTE_LUDO].partidas, p->estadisticas[REPORTE_LUDO].victorias) >= 0;
+                           p->estadisticas[ARCADE_TRUCO].partidas, p->estadisticas[ARCADE_TRUCO].victorias,
+                           p->estadisticas[ARCADE_BATALLA].partidas, p->estadisticas[ARCADE_BATALLA].victorias,
+                           p->estadisticas[ARCADE_LUDO].partidas, p->estadisticas[ARCADE_LUDO].victorias) >= 0);
     }
     if (correcto) {
-		correcto = fprintf(archivo, "\nTotal de perfiles: %d\n", registro->cantidad) >= 0;
-			}
-    if (fclose(archivo) == EOF){
-		correcto = false;
-			}
-    if (!correcto){
-		fprintf(stderr, "No se pudo completar el reporte de texto.\n");
-			}
+        correcto = (fprintf(archivo, "\nTotal de perfiles: %d\n", registro->cantidad) >= 0);
+    }
+    if (fclose(archivo) == EOF) {
+        correcto = false;
+    }
+    if (!correcto) {
+        fprintf(stderr, "No se pudo completar el reporte de texto.\n");
+    }
     return correcto;
 }
 
@@ -590,21 +661,26 @@ void mostrarInicios(const int inicios[3]) {
     printf("Truco: %d | Ludo: %d | Batalla Naval: %d\n", inicios[0], inicios[1], inicios[2]);
     printf("Nota: se cuentan inicios del juego, no victorias.\n");
 }
+
 void ejecutarMenuEstadisticas(const RegistroPerfiles *registro, const int inicios[3]) {
     int opcion = 0;
     while (opcion != 3) {
         mostrarMenuEstadisticas();
-        opcion = seleccionarOpcionMenu(1, 3);
-        switch (opcion) {
-            case 1:
-                mostrarIniciosTripleVerse(inicios);
-                mostrarEstadisticas(registro);
-                break;
-            case 2:
-                if (exportarReportePerfiles(registro))
+        opcion = leerEnteroEntre(1, 3, "Seleccione una opcion: ");
+        if (opcion == 1) {
+            mostrarInicios(inicios);
+            mostrarEstadisticas(registro);
+        } else {
+            if (opcion == 2) {
+                if (exportarReportePerfiles(registro)) {
                     printf("Reporte guardado en %s.\n", ARCADE_REPORTE);
-                break;
-            case 3: break;
+                }
+            } else {
+                if (opcion == 3) {
+                    printf("Volviendo...\n");
+                }
+            }
         }
+        pausarSeguro();
     }
 }
