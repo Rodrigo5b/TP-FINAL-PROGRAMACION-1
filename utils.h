@@ -1,13 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#ifndef _WIN32
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
-#include <unistd.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -18,9 +11,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
-#ifdef _WIN32
 #include <windows.h>
-#endif
 typedef char cadena[200];
 
 int leerEntero(const char *mensaje);
