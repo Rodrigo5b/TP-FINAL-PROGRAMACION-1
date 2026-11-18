@@ -1,6 +1,13 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#ifndef _WIN32
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+#include <unistd.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -16,17 +23,17 @@
 #endif
 typedef char cadena[200];
 
-int leerEntero(cadena mensaje);
-float leerFloat(cadena mensaje);
-char leerCaracter(cadena mensaje);
-int leerEnteroEntre(int valorMin, int valorMax, cadena mensaje);
-float leerFloatEntre(float valorMin, float valorMax, cadena mensaje);
-bool confirmaUsuario(cadena mensaje);
+int leerEntero(const char *mensaje);
+float leerFloat(const char *mensaje);
+char leerCaracter(const char *mensaje);
+int leerEnteroEntre(int valorMin, int valorMax, const char *mensaje);
+float leerFloatEntre(float valorMin, float valorMax, const char *mensaje);
+bool confirmaUsuario(const char *mensaje);
 void mostrarVectorDeEnteros(int elVector[], int cant);
-void leerVectorDeEnteros(cadena mensaje, int vec[], int cant);
+void leerVectorDeEnteros(const char *mensaje, int vec[], int cant);
 int calcSumatoria(int vecEnteros[], int cant);
 bool yaSalioAntes(char vector[], int iActual);
-void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[filas][columnas]);
+void leerMatrizDeEnteros(const char *mensaje, int filas, int columnas, int matriz[filas][columnas]);
 void mostrarMatrizDeEnteros(int filas, int columnas, int matriz[filas][columnas]);
 void limpiarPantalla();
 void pausarSeguro();
@@ -34,7 +41,7 @@ void esperarEnter(const char *mensaje);
 bool leerLinea(const char *mensaje, char *destino, size_t capacidad);
 void esperarMilisegundos(int milisegundos);
 
-int leerEntero(cadena mensaje) {
+int leerEntero(const char *mensaje) {
     int numero;
     printf("%s\n", mensaje);
     fflush(stdin);
@@ -42,7 +49,7 @@ int leerEntero(cadena mensaje) {
     return numero;
 }
 
-float leerFloat(cadena mensaje) {
+float leerFloat(const char *mensaje) {
     float numero;
     printf("%s:\n", mensaje);
     fflush(stdin);
@@ -50,7 +57,7 @@ float leerFloat(cadena mensaje) {
     return numero;
 }
 
-char leerCaracter(cadena mensaje) {
+char leerCaracter(const char *mensaje) {
     char caracter;
     printf("%s: ", mensaje);
     fflush(stdin);
@@ -58,7 +65,7 @@ char leerCaracter(cadena mensaje) {
     return caracter;
 }
 
-int leerEnteroEntre(int valorMin, int valorMax, cadena mensaje) {
+int leerEnteroEntre(int valorMin, int valorMax, const char *mensaje) {
     int numero;
     numero = leerEntero(mensaje);
     while (numero < valorMin || numero > valorMax) {
@@ -68,7 +75,7 @@ int leerEnteroEntre(int valorMin, int valorMax, cadena mensaje) {
     return numero;
 }
 
-float leerFloatEntre(float valorMin, float valorMax, cadena mensaje) {
+float leerFloatEntre(float valorMin, float valorMax, const char *mensaje) {
     float valor;
     valor = leerFloat(mensaje);
     while (valor < valorMin || valor > valorMax) {
@@ -78,7 +85,7 @@ float leerFloatEntre(float valorMin, float valorMax, cadena mensaje) {
     return valor;   
 }
 
-bool confirmaUsuario(cadena mensaje) {
+bool confirmaUsuario(const char *mensaje) {
     char res;
     res = leerCaracter(mensaje);
     res = toupper(res);
@@ -96,7 +103,7 @@ void mostrarVectorDeEnteros(int elVector[], int cant) {
     }
 }
 
-void leerVectorDeEnteros(cadena mensaje, int vec[], int cant) {
+void leerVectorDeEnteros(const char *mensaje, int vec[], int cant) {
     for (int i = 0; i < cant; i++) {
         printf("[%d] ", i);
         vec[i] = leerEntero(mensaje);
@@ -120,7 +127,7 @@ bool yaSalioAntes(char vector[], int iActual) {
     return j < iActual;
 }
 
-void leerMatrizDeEnteros(cadena mensaje, int filas, int columnas, int matriz[filas][columnas]) {
+void leerMatrizDeEnteros(const char *mensaje, int filas, int columnas, int matriz[filas][columnas]) {
     for (int i = 0; i < filas; i++) {
         for (int j = 0; j < columnas; j++) {
             printf("[%d][%d] ", i, j);

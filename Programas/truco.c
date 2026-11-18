@@ -96,6 +96,7 @@ int truco(void) {
                 manoInicial = 1 - manoInicial;
             }
             mostrarFinPartida(pJugador, pCPU, pMaximos);
+            registrarPartidaAutomatica(0, pJugador >= pMaximos);
         } else if (opcionMenu == 2) {
             mostrarReglas();
         } else if (opcionMenu == 3) {
@@ -1104,6 +1105,8 @@ void jugarRonda(Carta jCartas[], Carta cCartas[], int *puntosJ, int *puntosC, in
 }
 
 int determinarGanadorRonda(const int resultadoMano[], int ganadasJ, int ganadasC, int manoInicial) {
+    (void)ganadasJ;
+    (void)ganadasC;
     int ganador = 2;
     if (resultadoMano[0] != 0) {
         if (resultadoMano[1] == 0 || resultadoMano[1] == resultadoMano[0]) {
