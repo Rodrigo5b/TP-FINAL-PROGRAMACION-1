@@ -284,6 +284,7 @@ void jugar(int n) {
         printf("La computadora hundio todos tus barcos.\n");
     }
 
+    registrarPartidaAutomatica(1, partida.jugador.totalImpactos >= TOTAL_IMPACTOS);
     printf("\nPresione una tecla para volver al menu...\n");
     esperarTecla();
 }

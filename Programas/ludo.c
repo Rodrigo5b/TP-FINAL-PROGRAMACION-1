@@ -846,6 +846,9 @@ int jugarPartida(int cantidad, bool contraPc) {
     if (partida.ganador < 0) {
         return 0;
     }
+    /* Solo el jugador 1 representa al perfil elegido; no asignar victorias
+       de otros amigos a ese perfil. */
+    registrarPartidaAutomatica(2, partida.ganador == 0);
     return partida.ganador == 0 ? 1 : -1;
 }
 

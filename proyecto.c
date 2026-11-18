@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <inttypes.h>
+void registrarPartidaAutomatica(int juego, bool victoria);
 #include "Programas/batalla_naval.c"
 #include "Programas/ludo.c"
 #include "Programas/truco.c"
@@ -10,6 +12,9 @@
 #define ARCADE_TEMPORAL "perfiles.tmp"
 #define ARCADE_REPORTE "reporte_perfiles.txt"
 #define ARCADE_VERSION_ARCHIVO 1U
+#define ARCADE_ADMIN_ARCHIVO "administrador.dat"
+#define ARCADE_HISTORIAL "historial_partidas.txt"
+#define ARCADE_CLAVE_MAX 128
 
 enum { ARCADE_TRUCO = 0, ARCADE_BATALLA = 1, ARCADE_LUDO = 2 };
 
@@ -30,6 +35,19 @@ typedef struct {
     int cantidad;
     int proximoId;
 } RegistroPerfiles;
+
+/* La sesion se mantiene unicamente mientras el programa esta abierto. */
+static RegistroPerfiles *registroActivo = NULL;
+static int idJugadorActivo = -1;
+static bool datosEditables = false;
+static int *iniciosActivos = NULL;
+
+bool configurarAdministrador(void);
+bool autenticarAdministrador(void);
+void menuUsuarios(RegistroPerfiles *registro);
+int seleccionarJugador(RegistroPerfiles *registro);
+void registrarPartidaAutomatica(int juego, bool victoria);
+
 
 typedef enum {
     CARGA_NUEVA,
@@ -76,6 +94,13 @@ int main(void) {
     int opcion = 0;
     int iniciosJuego[3] = {0}; 
     srand((unsigned int)time(NULL));
+    registroActivo = &registro;
+    datosEditables = puedeGuardar;
+    iniciosActivos = iniciosJuego;
+    if (!configurarAdministrador()) {
+        fprintf(stderr, "No se pudo inicializar el administrador. Se cierra sin modificar perfiles.\n");
+        return 1;
+    }
 
     if (estadoCarga == CARGA_CORRECTA) {
         printf("Se recuperaron %d jugadores desde %s.\n", registro.cantidad, ARCADE_DATOS);
@@ -99,7 +124,7 @@ int main(void) {
                 ejecutarMenuEstadisticas(&registro, iniciosJuego);
             } else {
                 if (opcion == 3) {
-                    gestionarPerfiles(&registro);
+                    menuUsuarios(&registro);
                 } else {
                     if (opcion == 4) {
                         printf("Saliendo de la aplicacion...\n");
@@ -208,44 +233,33 @@ int ejecutaBatallaNaval(void) {
 
 void gestionarJuegos(RegistroPerfiles *registro, int iniciosJuego[3]) {
     int opcionJuego = 0;
+    /* Nunca se puede entrar a jugar con la cuenta administrador. */
+    idJugadorActivo = seleccionarJugador(registro);
+    if (idJugadorActivo < 0) return;
     while (opcionJuego != 4) {
         menuJuegos();
         opcionJuego = leerEnteroEntre(1, 4, "Seleccione una opcion de juego: ");
         if (opcionJuego == 1) {
-            iniciosJuego[ARCADE_TRUCO]++;
             ejecutaTruco();
-            if (registro->cantidad > 0) {
-                if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
-                    cargarResultadoManual(registro);
-                }
-            }
-        } else {
-            if (opcionJuego == 2) {
-                iniciosJuego[ARCADE_LUDO]++;
-                ejecutaLudo();
-                if (registro->cantidad > 0) {
-                    if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
-                        cargarResultadoManual(registro);
-                    }
-                }
-            } else {
-                if (opcionJuego == 3) {
-                    iniciosJuego[ARCADE_BATALLA]++;
-                    ejecutaBatallaNaval();
-                    if (registro->cantidad > 0) {
-                        if (confirmaUsuario("Desea registrar el resultado en un perfil?")) {
-                            cargarResultadoManual(registro);
-                        }
-                    }
-                } else {
-                    if (opcionJuego == 4) {
-                        printf("Volviendo al menu principal...\n");
-                    }
-                }
-            }
+        } else if (opcionJuego == 2) {
+            ejecutaLudo();
+        } else if (opcionJuego == 3) {
+            ejecutaBatallaNaval();
         }
-        pausarSeguro();
     }
+    idJugadorActivo = -1;
+    (void)iniciosJuego;
+}
+
+static bool nombreAdministrativo(const char *nombre) {
+    char copia[ARCADE_LONGITUD_NOMBRE];
+    size_t i = 0;
+    while (nombre[i] != '\0' && i < sizeof(copia) - 1) {
+        copia[i] = (char)tolower((unsigned char)nombre[i]);
+        i++;
+    }
+    copia[i] = '\0';
+    return strcmp(copia, "admin") == 0 || strcmp(copia, "administrador") == 0;
 }
 
 void inicializarPerfiles(RegistroPerfiles *registro) {
@@ -329,6 +343,10 @@ void registrarPerfil(RegistroPerfiles *registro) {
         return;
     }
     if (!leerNombrePerfil(perfil.nombre)) return;
+    if (nombreAdministrativo(perfil.nombre)) {
+        printf("Ese nombre esta reservado para el administrador.\n");
+        return;
+    }
     if (buscarPerfilPorNombre(registro, perfil.nombre) >= 0) {
         printf("Ya existe un jugador con ese nombre.\n");
         return;
@@ -361,6 +379,10 @@ void editarPerfil(RegistroPerfiles *registro) {
     mostrarPerfil(&registro->perfiles[indice]);
     if (!leerNombrePerfil(nombreNuevo)) return;
     int repetido = buscarPerfilPorNombre(registro, nombreNuevo);
+    if (nombreAdministrativo(nombreNuevo)) {
+        printf("Nombre reservado.\n");
+        return;
+    }
     if (repetido >= 0 && repetido != indice) {
         printf("Ese nombre ya esta registrado.\n");
         return;
@@ -420,16 +442,10 @@ void cargarResultadoManual(RegistroPerfiles *registro) {
 }
 
 void mostrarMenuPerfiles(void) {
-    printf("\n========== GESTION DE JUGADORES ==========\n");
-    printf("1. Registrar jugador\n");
-    printf("2. Listar jugadores\n");
-    printf("3. Buscar jugador por ID\n");
-    printf("4. Modificar nombre\n");
-    printf("5. Eliminar jugador\n");
-    printf("6. Registrar resultado manual\n");
-    printf("7. Listado ordenado por nombre\n");
-    printf("8. Exportar reporte de texto\n");
-    printf("9. Volver\n");
+    printf("\n====== ADMINISTRACION DE USUARIOS ======\n");
+    printf("1. Registrar jugador\n2. Listar jugadores\n3. Buscar por ID\n");
+    printf("4. Modificar nombre\n5. Eliminar jugador\n");
+    printf("6. Listado alfabetico\n7. Exportar reporte\n8. Volver\n");
 }
 
 void ordenarPerfilesPorNombre(PerfilJugador perfiles[], int cantidad) {
@@ -488,48 +504,23 @@ void mostrarMenuEstadisticas(void) {
 
 void gestionarPerfiles(RegistroPerfiles *registro) {
     int opcion = 0;
-    while (opcion != 9) {
+    while (opcion != 8) {
         mostrarMenuPerfiles();
-        opcion = leerEnteroEntre(1, 9, "Seleccione una opcion: ");
-        
-        if (opcion == 1) {
-            registrarPerfil(registro);
-        } else {
-            if (opcion == 2) {
-                listarPerfiles(registro);
-            } else {
-                if (opcion == 3) {
-                    consultarPerfil(registro);
-                } else {
-                    if (opcion == 4) {
-                        editarPerfil(registro);
-                    } else {
-                        if (opcion == 5) {
-                            eliminarPerfil(registro);
-                        } else {
-                            if (opcion == 6) {
-                                cargarResultadoManual(registro);
-                            } else {
-                                if (opcion == 7) {
-                                    listarPerfilesOrdenados(registro);
-                                } else {
-                                    if (opcion == 8) {
-                                        if (exportarReportePerfiles(registro)) {
-                                            printf("Reporte exportado: %s\n", ARCADE_REPORTE);
-                                        }
-                                    } else {
-                                        if (opcion == 9) {
-                                            printf("Volviendo...\n");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        opcion = leerEnteroEntre(1, 8, "Seleccione una opcion: ");
+        if (opcion == 1) registrarPerfil(registro);
+        else if (opcion == 2) listarPerfiles(registro);
+        else if (opcion == 3) consultarPerfil(registro);
+        else if (opcion == 4) editarPerfil(registro);
+        else if (opcion == 5) eliminarPerfil(registro);
+        else if (opcion == 6) listarPerfilesOrdenados(registro);
+        else if (opcion == 7) {
+            if (exportarReportePerfiles(registro)) printf("Reporte exportado.\n");
         }
-        pausarSeguro();
+        if (opcion != 8) {
+            if (!guardarPerfiles(registro)) printf("ERROR al guardar perfiles.\n");
+            exportarReportePerfiles(registro);
+            pausarSeguro();
+        }
     }
 }
 
@@ -656,9 +647,10 @@ bool exportarReportePerfiles(const RegistroPerfiles *registro) {
 
 void mostrarInicios(const int inicios[3]) {
     printf("\n========= ESTADISTICAS DE ESTA SESION =========\n");
-    printf("Partidas iniciadas: %d\n", inicios[0] + inicios[1] + inicios[2]);
-    printf("Truco: %d | Ludo: %d | Batalla Naval: %d\n", inicios[0], inicios[1], inicios[2]);
-    printf("Nota: se cuentan inicios del juego, no victorias.\n");
+    printf("Partidas finalizadas y registradas: %d\n", inicios[0] + inicios[1] + inicios[2]);
+    printf("Truco: %d | Ludo: %d | Batalla Naval: %d\n",
+           inicios[ARCADE_TRUCO], inicios[ARCADE_LUDO], inicios[ARCADE_BATALLA]);
+    printf("Nota: se cuentan partidas terminadas y guardadas en esta sesion.\n");
 }
 
 void ejecutarMenuEstadisticas(const RegistroPerfiles *registro, const int inicios[3]) {
@@ -682,4 +674,162 @@ void ejecutarMenuEstadisticas(const RegistroPerfiles *registro, const int inicio
         }
         pausarSeguro();
     }
+}
+
+
+/* Hash simple con sal para una practica local; NO reemplaza una libreria
+   criptografica para aplicaciones reales con informacion sensible. */
+static uint64_t hashClave(const char *clave, uint64_t sal) {
+    uint64_t hash = UINT64_C(14695981039346656037) ^ sal;
+    for (size_t i = 0; clave[i] != '\0'; i++) {
+        hash ^= (unsigned char)clave[i];
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+bool configurarAdministrador(void) {
+    FILE *archivo = fopen(ARCADE_ADMIN_ARCHIVO, "r");
+    if (archivo != NULL) {
+        uint64_t sal = 0, codigo = 0;
+        bool ok = fscanf(archivo, "%" SCNx64 " %" SCNx64, &sal, &codigo) == 2;
+        fclose(archivo);
+        if (!ok) fprintf(stderr, "Archivo de administrador invalido.\n");
+        return ok;
+    }
+    if (errno != ENOENT || !datosEditables) return false;
+    char clave[ARCADE_CLAVE_MAX], repetir[ARCADE_CLAVE_MAX];
+    printf("\nPRIMER INICIO: configure la clave de administrador.\n");
+    if (!leerLinea("Clave (minimo 8 caracteres): ", clave, sizeof clave)) return false;
+    if (strlen(clave) < 8) {
+        printf("La clave debe tener al menos 8 caracteres.\n");
+        return false;
+    }
+    if (!leerLinea("Repetir clave: ", repetir, sizeof repetir)) return false;
+    if (strcmp(clave, repetir) != 0) {
+        printf("Las claves no coinciden.\n");
+        return false;
+    }
+    /* Sal aleatoria basica, suficiente para demostracion de aula. */
+    uint64_t sal = ((uint64_t)(unsigned)time(NULL) << 32) ^ (unsigned)rand();
+    archivo = fopen(ARCADE_ADMIN_ARCHIVO, "w");
+    if (archivo == NULL) return false;
+    bool ok = fprintf(archivo, "%" PRIx64 " %" PRIx64 "\n", sal, hashClave(clave, sal)) > 0;
+    if (fclose(archivo) != 0) ok = false;
+    memset(clave, 0, sizeof clave);
+    memset(repetir, 0, sizeof repetir);
+    if (!ok) remove(ARCADE_ADMIN_ARCHIVO);
+    return ok;
+}
+
+bool autenticarAdministrador(void) {
+    FILE *archivo = fopen(ARCADE_ADMIN_ARCHIVO, "r");
+    if (!archivo) return false;
+    uint64_t sal = 0, codigo = 0;
+    bool valido = fscanf(archivo, "%" SCNx64 " %" SCNx64, &sal, &codigo) == 2;
+    fclose(archivo);
+    if (!valido) return false;
+    char clave[ARCADE_CLAVE_MAX];
+    for (int intento = 0; intento < 3; intento++) {
+        if (!leerLinea("Clave de administrador: ", clave, sizeof clave)) return false;
+        bool coincide = hashClave(clave, sal) == codigo;
+        memset(clave, 0, sizeof clave);
+        if (coincide) return true;
+        printf("Clave incorrecta.\n");
+    }
+    return false;
+}
+
+void menuUsuarios(RegistroPerfiles *registro) {
+    int opcion = 0;
+    while (opcion != 5) {
+        printf("\n=== USUARIOS ===\n1. Crear jugador\n2. Listar jugadores\n");
+        printf("3. Buscar jugador\n4. Acceso administrador\n5. Volver\n");
+        opcion = leerEnteroEntre(1, 5, "Opcion: ");
+        if (opcion == 1) {
+            if (datosEditables) {
+                registrarPerfil(registro);
+                if (!guardarPerfiles(registro)) printf("ERROR: no se pudieron guardar los datos.\n");
+                exportarReportePerfiles(registro);
+            } else printf("Archivo de perfiles daniado; registro deshabilitado.\n");
+        } else if (opcion == 2) listarPerfiles(registro);
+        else if (opcion == 3) consultarPerfil(registro);
+        else if (opcion == 4) {
+            if (autenticarAdministrador()) {
+                printf("Acceso administrador autorizado.\n");
+                if (datosEditables) gestionarPerfiles(registro);
+                else printf("Edicion deshabilitada por error en datos.\n");
+            } else printf("Acceso denegado.\n");
+        }
+    }
+}
+
+int seleccionarJugador(RegistroPerfiles *registro) {
+    while (true) {
+        printf("\n=== IDENTIFICACION PARA JUGAR ===\n");
+        printf("1. Crear nuevo usuario\n2. Usar usuario existente\n3. Volver\n");
+        int opcion = leerEnteroEntre(1, 3, "Opcion: ");
+        if (opcion == 3) return -1;
+        if (opcion == 1) {
+            if (!datosEditables) {
+                printf("No se pueden crear usuarios: error en el archivo de datos.\n");
+                continue;
+            }
+            int antes = registro->cantidad;
+            registrarPerfil(registro);
+            if (registro->cantidad > antes) {
+                if (!guardarPerfiles(registro)) {
+                    printf("No se pudo guardar el perfil nuevo.\n");
+                    registro->cantidad = antes;
+                    return -1;
+                }
+                exportarReportePerfiles(registro);
+                return registro->perfiles[antes].id;
+            }
+        } else {
+            if (registro->cantidad == 0) {
+                printf("Todavia no hay usuarios.\n");
+                continue;
+            }
+            listarPerfiles(registro);
+            int id = leerEntero("Ingrese el ID de su usuario: ");
+            int indice = buscarPerfilPorId(registro, id);
+            if (indice >= 0) {
+                printf("Bienvenido, %s.\n", registro->perfiles[indice].nombre);
+                return id;
+            }
+            printf("Usuario inexistente.\n");
+        }
+    }
+}
+
+void registrarPartidaAutomatica(int juego, bool victoria) {
+    if (!registroActivo || idJugadorActivo < 0 || juego < 0 || juego >= ARCADE_CANT_JUEGOS) return;
+    if (!datosEditables) {
+        printf("ERROR: no se pueden guardar estadisticas porque el archivo esta daniado.\n");
+        return;
+    }
+    int indice = buscarPerfilPorId(registroActivo, idJugadorActivo);
+    if (indice < 0) return;
+    EstadisticasPerfil *e = &registroActivo->perfiles[indice].estadisticas[juego];
+    if (e->partidas == INT_MAX || (victoria ? e->victorias == INT_MAX : e->derrotas == INT_MAX)) return;
+    registrarResultadoEnPerfil(registroActivo, idJugadorActivo, juego, victoria);
+    if (iniciosActivos) iniciosActivos[juego]++;
+    if (!guardarPerfiles(registroActivo)) {
+        printf("ERROR: no se pudo guardar el resultado en perfiles.dat.\n");
+        return;
+    }
+    if (!exportarReportePerfiles(registroActivo)) printf("ADVERTENCIA: no se pudo actualizar el reporte de texto.\n");
+    FILE *archivo = fopen(ARCADE_HISTORIAL, "a");
+    if (archivo != NULL) {
+        time_t ahora = time(NULL);
+        struct tm *local = localtime(&ahora);
+        char fecha[32] = "Fecha no disponible";
+        if (local) strftime(fecha, sizeof fecha, "%Y-%m-%d %H:%M:%S", local);
+        const char *nombres[] = {"Truco", "Batalla Naval", "Ludo"};
+        fprintf(archivo, "%s | ID %d | %s | %s | %s\n", fecha,
+                idJugadorActivo, registroActivo->perfiles[indice].nombre,
+                nombres[juego], victoria ? "VICTORIA" : "DERROTA");
+        if (fclose(archivo) != 0) printf("Error cerrando historial.\n");
+    } else printf("ADVERTENCIA: no se pudo actualizar historial_partidas.txt.\n");
 }
