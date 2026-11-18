@@ -15,6 +15,8 @@ void registrarPartidaAutomatica(int juego, bool victoria);
 #define ARCADE_ADMIN_ARCHIVO "administrador.dat"
 #define ARCADE_HISTORIAL "historial_partidas.txt"
 #define ARCADE_CLAVE_MAX 128
+#define CLAVE_HASH_INICIAL UINT64_C(14695981039346656037) /* Base del algoritmo FNV-1a. */
+#define CLAVE_HASH_MULTIPLICADOR UINT64_C(1099511628211) /* Multiplicador del algoritmo FNV-1a. */
 
 enum { ARCADE_TRUCO = 0, ARCADE_BATALLA = 1, ARCADE_LUDO = 2 };
 
@@ -37,10 +39,10 @@ typedef struct {
 } RegistroPerfiles;
 
 /* La sesion se mantiene unicamente mientras el programa esta abierto. */
-static RegistroPerfiles *registroActivo = NULL;
-static int idJugadorActivo = -1;
-static bool datosEditables = false;
-static int *iniciosActivos = NULL;
+RegistroPerfiles *registroActivo = NULL;
+int idJugadorActivo = -1;
+bool datosEditables = false;
+int *iniciosActivos = NULL;
 
 bool configurarAdministrador(void);
 bool autenticarAdministrador(void);
@@ -251,7 +253,7 @@ void gestionarJuegos(RegistroPerfiles *registro, int iniciosJuego[3]) {
     (void)iniciosJuego;
 }
 
-static bool nombreAdministrativo(const char *nombre) {
+bool nombreAdministrativo(const char *nombre) {
     char copia[ARCADE_LONGITUD_NOMBRE];
     size_t i = 0;
     while (nombre[i] != '\0' && i < sizeof(copia) - 1) {
@@ -597,8 +599,7 @@ bool guardarPerfiles(const RegistroPerfiles *registro) {
     if (fclose(archivo) == EOF) correcto = false;
     if (correcto) {
 #ifdef _WIN32
-        correcto = (MoveFileExA(ARCADE_TEMPORAL, ARCADE_DATOS,
-                              MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0);
+        correcto = (MoveFileExA(ARCADE_TEMPORAL, ARCADE_DATOS, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0);
 #else
         correcto = (rename(ARCADE_TEMPORAL, ARCADE_DATOS) == 0);
 #endif
@@ -653,39 +654,43 @@ void mostrarInicios(const int inicios[3]) {
     printf("Nota: se cuentan partidas terminadas y guardadas en esta sesion.\n");
 }
 
+void ejecutarOpcionEstadisticas(int opcion, const RegistroPerfiles *registro, const int inicios[3]) {
+    switch (opcion) {
+        case 1:
+            mostrarInicios(inicios);
+            mostrarEstadisticas(registro);
+            return;
+        case 2:
+            if (exportarReportePerfiles(registro) == true) {
+                printf("Reporte guardado en %s.\n", ARCADE_REPORTE);
+            }
+            return;
+        case 3:
+            printf("Volviendo...\n");
+            return;
+        default:
+            return;
+    }
+}
 void ejecutarMenuEstadisticas(const RegistroPerfiles *registro, const int inicios[3]) {
     int opcion = 0;
     while (opcion != 3) {
         mostrarMenuEstadisticas();
         opcion = leerEnteroEntre(1, 3, "Seleccione una opcion: ");
-        if (opcion == 1) {
-            mostrarInicios(inicios);
-            mostrarEstadisticas(registro);
-        } else {
-            if (opcion == 2) {
-                if (exportarReportePerfiles(registro)) {
-                    printf("Reporte guardado en %s.\n", ARCADE_REPORTE);
-                }
-            } else {
-                if (opcion == 3) {
-                    printf("Volviendo...\n");
-                }
-            }
-        }
+        ejecutarOpcionEstadisticas(opcion, registro, inicios);
         pausarSeguro();
     }
 }
 
 
-/* Hash simple con sal para una practica local; NO reemplaza una libreria
-   criptografica para aplicaciones reales con informacion sensible. */
-static uint64_t hashClave(const char *clave, uint64_t sal) {
-    uint64_t hash = UINT64_C(14695981039346656037) ^ sal;
+uint64_t hashClave(const char *clave, uint64_t sal) {
+    uint64_t resultado = CLAVE_HASH_INICIAL ^ sal;
     for (size_t i = 0; clave[i] != '\0'; i++) {
-        hash ^= (unsigned char)clave[i];
-        hash *= UINT64_C(1099511628211);
+        unsigned char letra = (unsigned char)clave[i];
+        resultado = resultado ^ letra;
+        resultado = resultado * CLAVE_HASH_MULTIPLICADOR;
     }
-    return hash;
+    return resultado;
 }
 
 bool configurarAdministrador(void) {
