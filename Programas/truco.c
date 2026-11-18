@@ -50,7 +50,7 @@ void ordenarCartasPorJerarquia(Carta cartas[], int cantidadCartas);
 int buscarCartaPorNumero(const Carta cartas[], int cantidadCartas, int numeroBuscado);
 int buscarCartaPorPaloYNumero(const Carta cartas[], int cantidadCartas, const char paloBuscado[], int numeroBuscado);
 void renderizarMesa(int puntosJ, int puntosC, int pMaximos, const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC);
-void gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, int *puntosJ, int *puntosC, int pMaximos, int *envidoCantado, int dificultadCPU, int manoInicial, const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC);
+bool gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, int *puntosJ, int *puntosC, int pMaximos, int *envidoCantado, int dificultadCPU, int manoInicial, const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC);
 void gestionarTruco(int iniciador, int *estTruco, int *ptsTruco, int *ultimoCantoTruco, int *puntosJ, int *puntosC, int pMaximos, bool *alMazo, int dificultadCPU, const Carta cCartas[], const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC);
 void procesarTurnoJugador(int *jCarta, bool dispJ[], int hJNros[], char hJPalos[][15], int *turno, bool *primerCarta, int *accion, int *estTruco, int *ptsTruco, int *ultimoCantoTruco, int *puntosJ, int *puntosC, bool *alMazo, int pMaximos, int envidoJ, int envidoC, int *envidoCantado, int dificultadCPU, int manoInicial, const int hCNros[], char hCPalos[][15], const Carta cCartas[], const Carta jCartas[], int mano, int ganadasJ, int ganadasC);
 void procesarTurnoCPU(int *cCarta, bool dispC[], int hCNros[], char hCPalos[][15], int *turno, bool *primerCarta, bool *alMazo, int jCarta, int envidoC, int envidoJ, int *envidoCantado, int dificultadCPU, int manoInicial, int *puntosJ, int *puntosC, int *estTruco, int *ptsTruco, int *ultimoCantoTruco, const Carta cCartas[], const Carta jCartas[], int mano, int pMaximos, const int hJNros[], char hJPalos[][15], const bool dispJ[], int ganadasJ, int ganadasC);
@@ -627,7 +627,7 @@ void renderizarMesa(int puntosJ, int puntosC, int pMaximos, const int hJNros[], 
     printf("========================================================================================\n");
 }
 
-void gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, int *puntosJ, int *puntosC, int pMaximos, int *envidoCantado, int dificultadCPU, int manoInicial, const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC) {
+bool gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, int *puntosJ, int *puntosC, int pMaximos, int *envidoCantado, int dificultadCPU, int manoInicial, const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC) {
     int falta = (*puntosJ > *puntosC) ? (pMaximos - *puntosJ) : (pMaximos - *puntosC);
     if (falta <= 0) falta = 1;
 
@@ -699,6 +699,7 @@ void gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, i
                 printf("                     >>> ¡DIJISTE: NO QUIERO! <<<\n");
                 printf("========================================================================================\n");
                 printf("  Rechazaste la apuesta: la CPU suma %d punto%s.\n", ptsRechazados, ptsRechazados == 1 ? "" : "s");
+                printf("  Resultado del Envido -> Vos: %d | CPU: %d\n", envidoJ, envidoC);
                 printf("  Tanteador actual -> Vos: %d pts | CPU: %d pts (a %d puntos)\n", *puntosJ, *puntosC, pMaximos);
                 printf("========================================================================================\n");
                 pausarSeguro();
@@ -794,6 +795,7 @@ void gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, i
                 printf("                    >>> ¡EL BOT DIJO: NO QUIERO! <<<\n");
                 printf("========================================================================================\n");
                 printf("  La CPU rechazo el envido: ¡sumas %d punto%s!\n", ptsRechazados, ptsRechazados == 1 ? "" : "s");
+                printf("  Resultado del Envido -> Vos: %d | CPU: %d\n", envidoJ, envidoC);
                 printf("  Tanteador actual -> Vos: %d pts | CPU: %d pts (a %d puntos)\n", *puntosJ, *puntosC, pMaximos);
                 printf("========================================================================================\n");
                 pausarSeguro();
@@ -801,6 +803,13 @@ void gestionarEnvido(int iniciador, int tipoInicial, int envidoJ, int envidoC, i
         }
     }
     *envidoCantado = 1;
+
+    /*
+     * Si el envido deja a uno de los jugadores en el puntaje maximo,
+     * se informa que la partida termina y se devuelve true.
+     * El llamador usa este resultado para cortar inmediatamente la ronda.
+     */
+    return (*puntosJ >= pMaximos || *puntosC >= pMaximos);
 }
 
 void gestionarTruco(int iniciador, int *estTruco, int *ptsTruco, int *ultimoCantoTruco, int *puntosJ, int *puntosC, int pMaximos, bool *alMazo, int dificultadCPU, const Carta cCartas[], const int hJNros[], char hJPalos[][15], const int hCNros[], char hCPalos[][15], const Carta jCartas[], const bool dispJ[], int mano, int ganadasJ, int ganadasC) {
@@ -959,7 +968,10 @@ void procesarTurnoJugador(int *jCarta, bool dispJ[], int hJNros[], char hJPalos[
         *turno = 1;
     } else if (*accion >= 2 && *accion <= 4) {
         if (puedeCantarEnvido) {
-            gestionarEnvido(0, *accion - 1, envidoJ, envidoC, puntosJ, puntosC, pMaximos, envidoCantado, dificultadCPU, manoInicial, hJNros, hJPalos, hCNros, hCPalos, jCartas, dispJ, mano, ganadasJ, ganadasC);
+            bool partidaTerminadaPorEnvido = gestionarEnvido(0, *accion - 1, envidoJ, envidoC, puntosJ, puntosC, pMaximos, envidoCantado, dificultadCPU, manoInicial, hJNros, hJPalos, hCNros, hCPalos, jCartas, dispJ, mano, ganadasJ, ganadasC);
+            if (partidaTerminadaPorEnvido) {
+                *alMazo = true;
+            }
         } else {
             printf("El envido solo se puede cantar antes de jugar la primera carta.\n");
             pausarSeguro();
@@ -984,7 +996,10 @@ void procesarTurnoCPU(int *cCarta, bool dispC[], int hCNros[], char hCPalos[][15
     bool puedeEnvido = (*primerCarta && *envidoCantado == 0 && dispC[0] && dispC[1] && dispC[2]);
 
     if (puedeEnvido && decidirEnvidoCPU(envidoC, dificultadCPU)) {
-        gestionarEnvido(1, 1, envidoJ, envidoC, puntosJ, puntosC, pMaximos, envidoCantado, dificultadCPU, manoInicial, hJNros, hJPalos, hCNros, hCPalos, jCartas, dispJ, mano, ganadasJ, ganadasC);
+        bool partidaTerminadaPorEnvido = gestionarEnvido(1, 1, envidoJ, envidoC, puntosJ, puntosC, pMaximos, envidoCantado, dificultadCPU, manoInicial, hJNros, hJPalos, hCNros, hCPalos, jCartas, dispJ, mano, ganadasJ, ganadasC);
+        if (partidaTerminadaPorEnvido) {
+            *alMazo = true;
+        }
     }
 
     if (!*alMazo && *estTruco < 3 && *ultimoCantoTruco != 1) {
